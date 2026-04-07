@@ -1,45 +1,15 @@
-import os
 import streamlit as st
-from bokeh.models import Button   # ✅ CORREGIDO AQUÍ
-from bokeh.models import CustomJS
-from streamlit_bokeh_events import streamlit_bokeh_events
-from PIL import Image
-import time
-import glob
+import speech_recognition as sr
 from gtts import gTTS
 from googletrans import Translator
+import os
 
-# ---------------- CONFIG ----------------
-st.set_page_config(
-    page_title="Traductor por Voz",
-    page_icon="🎤",
-    layout="centered"
-)
+# CONFIG
+st.set_page_config(page_title="Traductor por Voz", page_icon="🎤")
 
-# ---------------- ESTILO ----------------
-st.markdown("""
-<style>
-.stButton > button {
-    border-radius: 12px;
-    border: none;
-    background-color: #ff4b4b;
-    color: white;
-    font-weight: bold;
-}
-.stButton > button:hover {
-    background-color: #ff2e2e;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- HEADER ----------------
 st.title("🎤 Traductor por Voz")
-st.write("Habla y obtén tu traducción en segundos.")
+st.write("Presiona el botón y habla")
 
-image = Image.open('OIG7.jpg')
-st.image(image, width=220)
-
-# ---------------- IDIOMAS ----------------
 idiomas = {
     "Español": "es",
     "Inglés": "en",
@@ -48,114 +18,41 @@ idiomas = {
     "Japonés": "ja"
 }
 
-# ---------------- SELECTORES ----------------
-st.markdown("### 🌍 Configuración")
-
 col1, col2 = st.columns(2)
 
 with col1:
     in_lang = st.selectbox("Idioma que hablas", list(idiomas.keys()))
 
 with col2:
-    out_lang = st.selectbox("Idioma al que quieres traducir", list(idiomas.keys()))
+    out_lang = st.selectbox("Traducir a", list(idiomas.keys()))
 
-# ---------------- BOTÓN GRABAR ----------------
-st.markdown("### 🎤 Paso 1: Hablar")
-
-stt_button = Button(label="🎙️ Grabar voz", width=250)
-
-stt_button.js_on_event("button_click", CustomJS(code="""
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var recognition = new SpeechRecognition();
-
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'es-ES';
-
-    document.dispatchEvent(new CustomEvent("LISTENING", {detail: "start"}));
-
-    recognition.onresult = function (e) {
-        var text = e.results[0][0].transcript;
-        document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: text}));
-    }
-
-    recognition.onend = function() {
-        document.dispatchEvent(new CustomEvent("LISTENING", {detail: "stop"}));
-    }
-
-    recognition.start();
-"""))
-
-result = streamlit_bokeh_events(
-    stt_button,
-    events="GET_TEXT,LISTENING",
-    key="listen",
-    refresh_on_update=False,
-    override_height=75,
-    debounce_time=0
-)
-
-# ---------------- ESTADO ----------------
-if result and "LISTENING" in result:
-    if result["LISTENING"] == "start":
-        st.info("🎙️ Te estoy escuchando...")
-    elif result["LISTENING"] == "stop":
-        st.success("✅ Grabación finalizada")
-
-# ---------------- TEXTO ----------------
-text = ""
-
-if result and "GET_TEXT" in result:
-    text = result.get("GET_TEXT")
-    st.markdown("### 📝 Texto detectado")
-    st.success(text)
-
-# ---------------- TRADUCCIÓN ----------------
 translator = Translator()
 
-def text_to_speech(input_language, output_language, text):
-    translation = translator.translate(text, src=input_language, dest=output_language)
-    trans_text = translation.text
+# 🎤 BOTÓN GRABAR
+if st.button("🎤 Grabar voz"):
 
-    tts = gTTS(trans_text, lang=output_language)
+    r = sr.Recognizer()
 
-    if not os.path.exists("temp"):
-        os.mkdir("temp")
+    with sr.Microphone() as source:
+        st.info("🎙️ Escuchando...")
+        audio = r.listen(source)
 
-    file_path = "temp/audio.mp3"
-    tts.save(file_path)
+    try:
+        text = r.recognize_google(audio, language=idiomas[in_lang])
+        st.success(f"📝 {text}")
 
-    return file_path, trans_text
+        # TRADUCIR
+        translation = translator.translate(text, src=idiomas[in_lang], dest=idiomas[out_lang])
+        output_text = translation.text
 
-# ---------------- BOTÓN TRADUCIR ----------------
-if text:
-    st.markdown("### 🌍 Paso 2: Traducir")
+        st.success(f"🌍 {output_text}")
 
-    if st.button("Traducir"):
+        # AUDIO
+        tts = gTTS(output_text, lang=idiomas[out_lang])
+        tts.save("audio.mp3")
 
-        with st.spinner("Traduciendo..."):
-            audio_path, output_text = text_to_speech(
-                idiomas[in_lang],
-                idiomas[out_lang],
-                text
-            )
+        audio_file = open("audio.mp3", "rb")
+        st.audio(audio_file.read(), format="audio/mp3")
 
-        st.markdown("### 📄 Traducción")
-        st.success(output_text)
-
-        st.markdown("### 🔊 Escuchar resultado")
-        st.audio(audio_path)
-
-# ---------------- LIMPIEZA ----------------
-def remove_files():
-    files = glob.glob("temp/*.mp3")
-    now = time.time()
-    for f in files:
-        if os.stat(f).st_mtime < now - 86400:
-            os.remove(f)
-
-remove_files()
-
-# ---------------- FOOTER ----------------
-st.markdown("---")
-st.caption("✨ Experiencia simple, clara y funcional")
+    except:
+        st.error("❌ No entendí lo que dijiste")
