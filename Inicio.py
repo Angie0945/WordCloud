@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from bokeh.models.widgets import Button
+from bokeh.models import Button   # ✅ CORREGIDO AQUÍ
 from bokeh.models import CustomJS
 from streamlit_bokeh_events import streamlit_bokeh_events
 from PIL import Image
@@ -19,12 +19,6 @@ st.set_page_config(
 # ---------------- ESTILO ----------------
 st.markdown("""
 <style>
-/* Quitar sensación gris */
-section[data-testid="stSidebar"] {
-    background-color: #fafafa;
-}
-
-/* Botones más visibles */
 .stButton > button {
     border-radius: 12px;
     border: none;
@@ -32,15 +26,8 @@ section[data-testid="stSidebar"] {
     color: white;
     font-weight: bold;
 }
-
 .stButton > button:hover {
     background-color: #ff2e2e;
-}
-
-/* Selectbox más claros */
-div[data-baseweb="select"] {
-    background-color: white !important;
-    border-radius: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -61,8 +48,8 @@ idiomas = {
     "Japonés": "ja"
 }
 
-# ---------------- SELECTORES PRINCIPALES ----------------
-st.markdown("### 🌍 Configura tu traducción")
+# ---------------- SELECTORES ----------------
+st.markdown("### 🌍 Configuración")
 
 col1, col2 = st.columns(2)
 
@@ -73,9 +60,9 @@ with col2:
     out_lang = st.selectbox("Idioma al que quieres traducir", list(idiomas.keys()))
 
 # ---------------- BOTÓN GRABAR ----------------
-st.markdown("### 🎤 Paso 1: Habla")
+st.markdown("### 🎤 Paso 1: Hablar")
 
-stt_button = Button(label="🎙️ Empezar a grabar", width=250)
+stt_button = Button(label="🎙️ Grabar voz", width=250)
 
 stt_button.js_on_event("button_click", CustomJS(code="""
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -113,14 +100,14 @@ if result and "LISTENING" in result:
     if result["LISTENING"] == "start":
         st.info("🎙️ Te estoy escuchando...")
     elif result["LISTENING"] == "stop":
-        st.success("✅ Listo")
+        st.success("✅ Grabación finalizada")
 
 # ---------------- TEXTO ----------------
 text = ""
 
 if result and "GET_TEXT" in result:
     text = result.get("GET_TEXT")
-    st.markdown("### 📝 Esto fue lo que dijiste")
+    st.markdown("### 📝 Texto detectado")
     st.success(text)
 
 # ---------------- TRADUCCIÓN ----------------
@@ -153,10 +140,10 @@ if text:
                 text
             )
 
-        st.markdown("### 📄 Resultado")
+        st.markdown("### 📄 Traducción")
         st.success(output_text)
 
-        st.markdown("### 🔊 Escuchar")
+        st.markdown("### 🔊 Escuchar resultado")
         st.audio(audio_path)
 
 # ---------------- LIMPIEZA ----------------
@@ -171,4 +158,4 @@ remove_files()
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.caption("Hecho para una experiencia simple y clara ✨")
+st.caption("✨ Experiencia simple, clara y funcional")
